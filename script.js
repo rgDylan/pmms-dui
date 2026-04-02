@@ -4,6 +4,18 @@ var resourceName = 'pmms';
 var isRDR = true;
 var audioVisualizations = {};
 var currentServerEndpoint = '127.0.0.1:30120';
+var ytApiReady = false;
+var ytPendingQueue = [];
+
+/* YouTube IFrame API ready callback */
+function onYouTubeIframeAPIReady() {
+	ytApiReady = true;
+	/* Process any queued YouTube players */
+	while (ytPendingQueue.length > 0) {
+		var pending = ytPendingQueue.shift();
+		initYouTubePlayer(pending.id, pending.handle, pending.options);
+	}
+}
 
 function sendMessage(name, params) {
 	return fetch(`https://${resourceName}/${name}`, {
@@ -339,7 +351,13 @@ function initYouTubePlayer(id, handle, options) {
 function initPlayer(id, handle, options) {
 	/* YouTube → use IFrame API directly */
 	if (getYouTubeVideoId(options.url)) {
-		return initYouTubePlayer(id, handle, options);
+		if (ytApiReady) {
+			return initYouTubePlayer(id, handle, options);
+		} else {
+			/* API pas encore prête, on met en file d'attente */
+			ytPendingQueue.push({id: id, handle: handle, options: options});
+			return null;
+		}
 	}
 
 	var player = document.createElement('video');
